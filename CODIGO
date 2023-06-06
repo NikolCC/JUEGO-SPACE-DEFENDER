@@ -1,0 +1,191 @@
+import pygame
+import random
+
+# Inicialización de Pygame
+pygame.init()
+
+# Dimensiones de la ventana del juego
+width = 800
+height = 600
+
+# Colores
+white = (255, 255, 255)
+black = (0, 0, 0)
+
+# Creación de la ventana del juego
+window = pygame.display.set_mode((width, height))
+pygame.display.set_caption("Space Defender")
+
+# Función para mostrar las instrucciones en la pantalla
+def show_instructions():
+    font = pygame.font.Font(None, 36)
+    text = font.render("¡Bienvenido a Space Defender!", True, white)
+    window.blit(text, (width // 2 - text.get_width() // 2, height // 2 - text.get_height() - 50))
+    text = font.render("Presiona la barra espaciadora para disparar", True, white)
+    window.blit(text, (width // 2 - text.get_width() // 2, height // 2 - text.get_height()))
+    text = font.render("Evita que los enemigos te alcancen", True, white)
+    window.blit(text, (width // 2 - text.get_width() // 2, height // 2))
+
+# Función para mostrar el mensaje "Game Over" en la pantalla
+def show_game_over():
+    font = pygame.font.Font(None, 72)
+    text = font.render("Game Over", True, white)
+    window.blit(text, (width // 2 - text.get_width() // 2, height // 2 - text.get_height() // 2))
+
+# Clase para representar la nave espacial del jugador
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface((50, 50))
+        self.image.fill(white)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = width // 2
+        self.rect.bottom = height - 10
+        self.speed = 5
+
+    def update(self):
+        # Manejo del movimiento de la nave espacial del jugador
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and self.rect.left > 0:
+            self.rect.x -= self.speed
+        if keys[pygame.K_RIGHT] and self.rect.right < width:
+            self.rect.x += self.speed
+
+    def shoot(self):
+        # Lógica de disparo del jugador
+        bullet = Bullet(self.rect.centerx, self.rect.top)
+        all_sprites.add(bullet)
+        bullets.add(bullet)
+
+# Clase para representar los enemigos
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface((30, 30))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.x = random.randint(0, width - self.rect.width)
+        self.rect.y = random.randint(-100, -40)
+        self.speedy = random.randint(1, 3)
+
+    def update(self):
+        # Manejo del movimiento de los enemigos
+        self.rect.y += self.speedy
+        if self.rect.top > height + 10:
+            self.rect.x = random.randint(0, width - self.rect.width)
+            self.rect.y = random.randint(-100, -40)
+            self.speedy = random.randint(1, 3)
+
+# Clase para representar los disparos
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((10, 20))
+        self.image.fill((0, 255, 0))
+        self.rect = self.image.get_rect()
+        self.rect.centerx = x
+        self.rect.bottom = y
+        self.speedy = -10
+
+    def update(self):
+        # Manejo del movimiento de los disparos
+        self.rect.y += self.speedy
+        if self.rect.bottom < 0:
+            self.kill()
+
+# Grupos de sprites
+all_sprites = pygame.sprite.Group()
+enemies = pygame.sprite.Group()
+bullets = pygame.sprite.Group()
+
+# Creación del jugador
+player = Player()
+all_sprites.add(player)
+
+# Creación de los enemigos
+for _ in range(10):
+    enemy = Enemy()
+    all_sprites.add(enemy)
+    enemies.add(enemy)
+
+# Reloj del juego
+clock = pygame.time.Clock()
+
+# Puntuación del jugador
+score = 0
+
+# Función para mostrar la puntuación en la pantalla
+def show_score():
+    font = pygame.font.Font(None, 36)
+    text = font.render("Score: " + str(score), True, white)
+    window.blit(text, (10, 10))
+
+# Mostrar las instrucciones antes de que comience el juego
+show_instructions()
+pygame.display.flip()
+
+# Variable para controlar el estado del juego
+game_started = False
+game_over = False
+
+# Bucle principal del juego
+running = True
+while running:
+    # Manejo de eventos
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                if not game_started:
+                    game_started = True
+                    all_sprites.empty()
+                    enemies.empty()
+                    bullets.empty()
+                    player = Player()
+                    all_sprites.add(player)
+                    for _ in range(10):
+                        enemy = Enemy()
+                        all_sprites.add(enemy)
+                        enemies.add(enemy)
+                    score = 0
+                    game_over = False
+                else:
+                    player.shoot()
+
+    window.fill(black)
+
+    if not game_started:
+        if not game_over:
+            # Mostrar las instrucciones
+            show_instructions()
+        else:
+            # Mostrar "Game Over"
+            show_game_over()
+    else:
+        # Actualización de sprites
+        all_sprites.update()
+
+        # Colisiones entre disparos y enemigos
+        hits = pygame.sprite.groupcollide(enemies, bullets, True, True)
+        for hit in hits:
+            enemy = Enemy()
+            all_sprites.add(enemy)
+            enemies.add(enemy)
+            score += 10
+
+        # Colisiones entre jugador y enemigos
+        hits = pygame.sprite.spritecollide(player, enemies, False)
+        if hits:
+            game_started = False
+            game_over = True
+
+        # Dibujado en pantalla
+        all_sprites.draw(window)
+        show_score()
+
+    pygame.display.flip()
+    clock.tick(60)
+
+# Cierre de Pygame
+pygame.quit()
